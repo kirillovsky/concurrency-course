@@ -3,14 +3,18 @@ package course.concurrency.m2_async.cf.min_price;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import static java.lang.Double.NaN;
+import static java.lang.Double.POSITIVE_INFINITY;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class PriceAggregator {
 
     private PriceRetriever priceRetriever = new PriceRetriever();
     private Collection<Long> shopIds = Set.of(10l, 45l, 66l, 345l, 234l, 333l, 67l, 123l, 768l);
+    private Executor ioPool = Executors.newCachedThreadPool();
 
     private final int receivePriceTimeoutInMillis;
 
@@ -29,26 +33,25 @@ public class PriceAggregator {
     public double getMinPrice(long itemId) {
         return shopIds.stream()
                 .map(shopId -> loadPriceAsync(itemId, shopId))
-                .reduce((left, right) -> left.thenCombine(right, this::minWithNanConsideration))
-                .orElseGet(this::shopListIsEmpty)
+                .reduce((left, right) -> left.thenCombine(right, Math::min))
+                .map(resultCF -> resultCF.thenApply(PriceAggregator::infinityToNaN))
+                .orElseGet(PriceAggregator::shopListIsEmpty)
                 .join();
     }
 
     private CompletableFuture<Double> loadPriceAsync(long itemId, long shopId) {
         return CompletableFuture
-                .supplyAsync(() -> priceRetriever.getPrice(itemId, shopId))
-                .thenApply(result -> result == null ? NaN : result)
-                .exceptionally(exception -> NaN)
-                .completeOnTimeout(NaN, receivePriceTimeoutInMillis, MILLISECONDS);
+                .supplyAsync(() -> priceRetriever.getPrice(itemId, shopId), ioPool)
+                .thenApply(result -> result == null ? POSITIVE_INFINITY : result)
+                .exceptionally(exception -> POSITIVE_INFINITY)
+                .completeOnTimeout(POSITIVE_INFINITY, receivePriceTimeoutInMillis, MILLISECONDS);
     }
 
-    private CompletableFuture<Double> shopListIsEmpty() {
-        return CompletableFuture.failedFuture(new IllegalStateException("shops list is empty"));
+    private static CompletableFuture<Double> shopListIsEmpty() {
+        return CompletableFuture.completedFuture(NaN);
     }
 
-    private Double minWithNanConsideration(Double left, Double right) {
-        if (left.isNaN()) return right;
-        if (right.isNaN()) return left;
-        return Math.min(left, right);
+    private static double infinityToNaN(Double d) {
+        return d.isInfinite() ? NaN: d;
     }
 }
