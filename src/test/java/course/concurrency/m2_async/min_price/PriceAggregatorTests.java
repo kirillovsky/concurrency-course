@@ -34,7 +34,8 @@ public class PriceAggregatorTests {
 
     @BeforeEach
     public void setup() {
-        priceAggregator = new PriceAggregator();
+        var receivePriceTimeoutInMillis = SLA - 100;
+        priceAggregator = new PriceAggregator(receivePriceTimeoutInMillis);
         randomItemId = ThreadLocalRandom.current().nextLong();
     }
 
