@@ -3,6 +3,7 @@ package course.concurrency.m3_shared.collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 public class RestaurantService {
@@ -13,7 +14,7 @@ public class RestaurantService {
         put("C", new Restaurant("C"));
     }};
 
-    private final Map<String, Integer> stat = new ConcurrentHashMap<>();
+    private final Map<String, LongAdder> stat = new ConcurrentHashMap<>();
 
     public Restaurant getByName(String restaurantName) {
         addToStat(restaurantName);
@@ -21,14 +22,14 @@ public class RestaurantService {
     }
 
     public void addToStat(String restaurantName) {
-        stat.compute(restaurantName, (name, oldValue) -> (oldValue == null) ? 1 : oldValue + 1);
+        stat.computeIfAbsent(restaurantName, key -> new LongAdder()).increment();
     }
 
     public Set<String> printStat() {
         return stat
                 .entrySet()
                 .stream()
-                .map(e -> e.getKey() + " - " + e.getValue())
+                .map(e -> e.getKey() + " - " + e.getValue().sum())
                 .collect(Collectors.toSet());
     }
 }
