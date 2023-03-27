@@ -64,5 +64,6 @@ public class RestaurantServiceTests {
         assertTrue(statResult.contains("C - " + iterations*poolSize));
 
         stat.addData("service",end - start);
+        stat.printStatistics();
     }
 }
