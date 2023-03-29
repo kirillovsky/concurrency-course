@@ -64,7 +64,23 @@ public final class Order {
         return status;
     }
 
-    public Order withStatus(Status status) {
+    public Order deliveringOrder() {
+        return withStatus(DELIVERING);
+    }
+
+    public Order deliveredOrder() {
+        return withStatus(DELIVERED);
+    }
+
+    private Order withStatus(Status status) {
         return new Order(id, items, status, isPacked, paymentInfo);
+    }
+
+    public boolean isDelivered() {
+        return status == DELIVERED;
+    }
+
+    public boolean isDelivering() {
+        return status == DELIVERING;
     }
 }

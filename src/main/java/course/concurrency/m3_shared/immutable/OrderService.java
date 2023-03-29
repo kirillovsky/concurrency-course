@@ -43,21 +43,21 @@ public class OrderService {
     }
 
     private Order deliveringOrderIfPermits(Order order) {
-        return order.checkStatus() ? order.withStatus(DELIVERING) : order;
+        return order.checkStatus() ? order.deliveringOrder() : order;
     }
 
     private void deliverIfNeeds(Order order) {
-        if (order == null || order.getStatus() != DELIVERING) return;
+        if (order == null || !order.isDelivering()) return;
 
         deliver(order);
     }
 
     private void deliver(Order order) {
         /* ... */
-        currentOrders.put(order.getId(), order.withStatus(DELIVERED));
+        currentOrders.put(order.getId(), order.deliveredOrder());
     }
 
     public boolean isDelivered(long orderId) {
-        return currentOrders.get(orderId).getStatus().equals(DELIVERED);
+        return currentOrders.get(orderId).isDelivered();
     }
 }
