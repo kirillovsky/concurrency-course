@@ -2,6 +2,8 @@ package course.concurrency.exams.auction;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import static course.concurrency.exams.auction.Bid.NEGATIVE_INFINITY_BID;
+
 public class AuctionOptimistic implements Auction {
 
     private Notifier notifier;
@@ -10,17 +12,19 @@ public class AuctionOptimistic implements Auction {
         this.notifier = notifier;
     }
 
-    private final AtomicReference<Bid> latestBid = new AtomicReference<>();
+    private final AtomicReference<Bid> latestBid = new AtomicReference<>(NEGATIVE_INFINITY_BID);
 
     public boolean propose(Bid bid) {
-        boolean isUpdatedLatestBid;
-        Bid currentLatestBid;
-        do {
-            currentLatestBid = latestBid.get();
-            isUpdatedLatestBid = currentLatestBid == null || bid.getPrice() > currentLatestBid.getPrice();
-        } while (isUpdatedLatestBid && !latestBid.compareAndSet(currentLatestBid, bid));
+        Bid currentLatestBid = latestBid.get();
 
-        if (isUpdatedLatestBid && currentLatestBid != null) {
+        if (bid.getPrice() <= currentLatestBid.getPrice()) return false;
+
+        while (bid.getPrice() > currentLatestBid.getPrice() && !latestBid.compareAndSet(currentLatestBid, bid)) {
+            currentLatestBid = latestBid.get();
+        }
+
+        boolean isUpdatedLatestBid = bid.getPrice() > currentLatestBid.getPrice();
+        if (isUpdatedLatestBid && currentLatestBid != NEGATIVE_INFINITY_BID) {
             notifier.sendOutdatedMessage(currentLatestBid);
         }
         return isUpdatedLatestBid;

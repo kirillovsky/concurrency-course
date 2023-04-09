@@ -1,5 +1,7 @@
 package course.concurrency.exams.auction;
 
+import static course.concurrency.exams.auction.Bid.NEGATIVE_INFINITY_BID;
+
 public class AuctionPessimistic implements Auction {
 
     private Notifier notifier;
@@ -10,30 +12,25 @@ public class AuctionPessimistic implements Auction {
 
     private final Object pessimisticLock = new Object();
 
-    private volatile Bid latestBid;
+    private volatile Bid latestBid = NEGATIVE_INFINITY_BID;
 
     public boolean propose(Bid bid) {
-        if (!isNewBidGreaterThanLatest(bid)) return false;
+        if (bid.getPrice() <= latestBid.getPrice()) return false;
 
-        boolean isUpdatedLatestBid = false;
-        Bid previousLatestBid = null;
+        Bid previousLatestBid;
         synchronized (pessimisticLock) {
-            if (isNewBidGreaterThanLatest(bid)) {
-                previousLatestBid = latestBid;
+            previousLatestBid = latestBid;
+            if (bid.getPrice() > latestBid.getPrice()) {
                 latestBid = bid;
-                isUpdatedLatestBid = true;
             }
         }
 
-        if (isUpdatedLatestBid && previousLatestBid != null) {
+        boolean isUpdatedLatestBid = bid.getPrice() > previousLatestBid.getPrice();
+        if (isUpdatedLatestBid && previousLatestBid != NEGATIVE_INFINITY_BID) {
             notifier.sendOutdatedMessage(previousLatestBid);
         }
 
         return isUpdatedLatestBid;
-    }
-
-    private boolean isNewBidGreaterThanLatest(Bid newBid) {
-        return latestBid == null || newBid.getPrice() > latestBid.getPrice();
     }
 
     public Bid getLatestBid() {

@@ -1,5 +1,7 @@
 package course.concurrency.exams.auction;
 
+import static course.concurrency.exams.auction.Bid.NEGATIVE_INFINITY_BID;
+
 public class AuctionStoppablePessimistic implements AuctionStoppable {
 
     private Notifier notifier;
@@ -10,30 +12,29 @@ public class AuctionStoppablePessimistic implements AuctionStoppable {
 
     private final Object pessimisticLock = new Object();
     private volatile boolean isAuctionStopped = false;
-    private volatile Bid latestBid;
+    private volatile Bid latestBid = NEGATIVE_INFINITY_BID;
 
     public boolean propose(Bid bid) {
-        if (!isCanUpdateLatestBid(bid)) return false;
+        if (!isCanUpdateLatestBid(latestBid, bid)) return false;
 
-        boolean isUpdatedLatestBid = false;
-        Bid previousLatestBid = null;
+        Bid previousLatestBid;
         synchronized (pessimisticLock) {
-            if (isCanUpdateLatestBid(bid)) {
-                previousLatestBid = latestBid;
+            previousLatestBid = latestBid;
+            if (isCanUpdateLatestBid(latestBid, bid)) {
                 latestBid = bid;
-                isUpdatedLatestBid = true;
             }
         }
 
-        if (isUpdatedLatestBid && previousLatestBid != null) {
+        boolean isUpdatedLatestBid = isCanUpdateLatestBid(previousLatestBid, bid);
+        if (isUpdatedLatestBid && previousLatestBid != NEGATIVE_INFINITY_BID) {
             notifier.sendOutdatedMessage(previousLatestBid);
         }
 
         return isUpdatedLatestBid;
     }
 
-    private boolean isCanUpdateLatestBid(Bid newBid) {
-        return !isAuctionStopped && (latestBid == null || newBid.getPrice() > latestBid.getPrice());
+    private boolean isCanUpdateLatestBid(Bid latestBid, Bid newBid) {
+        return !isAuctionStopped && newBid.getPrice() > latestBid.getPrice();
     }
 
     public Bid getLatestBid() {

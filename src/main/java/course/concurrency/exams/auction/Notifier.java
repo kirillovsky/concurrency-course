@@ -21,5 +21,6 @@ public class Notifier {
     }
 
     public void shutdown() {
+        this.executor.shutdownNow();
     }
 }
