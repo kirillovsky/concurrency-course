@@ -8,15 +8,32 @@ public class AuctionStoppablePessimistic implements AuctionStoppable {
         this.notifier = notifier;
     }
 
-    private Bid latestBid;
+    private final Object pessimisticLock = new Object();
+    private volatile boolean isAuctionStopped = false;
+    private volatile Bid latestBid;
 
     public boolean propose(Bid bid) {
-        if (bid.getPrice() > latestBid.getPrice()) {
-            notifier.sendOutdatedMessage(latestBid);
-            latestBid = bid;
-            return true;
+        if (!isCanUpdateLatestBid(bid)) return false;
+
+        boolean isUpdatedLatestBid = false;
+        Bid previousLatestBid = null;
+        synchronized (pessimisticLock) {
+            if (isCanUpdateLatestBid(bid)) {
+                previousLatestBid = latestBid;
+                latestBid = bid;
+                isUpdatedLatestBid = true;
+            }
         }
-        return false;
+
+        if (isUpdatedLatestBid && previousLatestBid != null) {
+            notifier.sendOutdatedMessage(previousLatestBid);
+        }
+
+        return isUpdatedLatestBid;
+    }
+
+    private boolean isCanUpdateLatestBid(Bid newBid) {
+        return !isAuctionStopped && (latestBid == null || newBid.getPrice() > latestBid.getPrice());
     }
 
     public Bid getLatestBid() {
@@ -24,6 +41,12 @@ public class AuctionStoppablePessimistic implements AuctionStoppable {
     }
 
     public Bid stopAuction() {
-        return latestBid;
+        isAuctionStopped = true;
+        //it's have to use pessimisticLock instead direct access to latestBid, case in time when we set isAuctionStopped
+        //actual latestBid can be in updating, but not updated yet.
+        //And in this case will be returned previous latestBid but not last
+        synchronized (pessimisticLock) {
+            return latestBid;
+        }
     }
 }
