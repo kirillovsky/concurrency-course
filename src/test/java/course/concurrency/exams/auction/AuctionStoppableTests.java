@@ -23,7 +23,7 @@ public class AuctionStoppableTests {
 
     @BeforeEach
     public void setup() {
-        notifier = new Notifier();
+        notifier = new Notifier(poolSize * 20);
 
         executor = Executors.newFixedThreadPool(poolSize);
         priceQueue = new ArrayBlockingQueue<>(bidCount);

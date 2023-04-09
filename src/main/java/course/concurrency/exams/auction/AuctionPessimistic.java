@@ -8,15 +8,32 @@ public class AuctionPessimistic implements Auction {
         this.notifier = notifier;
     }
 
-    private Bid latestBid;
+    private final Object pessimisticLock = new Object();
+
+    private volatile Bid latestBid;
 
     public boolean propose(Bid bid) {
-        if (bid.getPrice() > latestBid.getPrice()) {
-            notifier.sendOutdatedMessage(latestBid);
-            latestBid = bid;
-            return true;
+        if (!isNewBidGreaterThanLatest(bid)) return false;
+
+        boolean isUpdatedLatestBid = false;
+        Bid previousLatestBid = null;
+        synchronized (pessimisticLock) {
+            if (isNewBidGreaterThanLatest(bid)) {
+                previousLatestBid = latestBid;
+                latestBid = bid;
+                isUpdatedLatestBid = true;
+            }
         }
-        return false;
+
+        if (isUpdatedLatestBid && previousLatestBid != null) {
+            notifier.sendOutdatedMessage(previousLatestBid);
+        }
+
+        return isUpdatedLatestBid;
+    }
+
+    private boolean isNewBidGreaterThanLatest(Bid newBid) {
+        return latestBid == null || newBid.getPrice() > latestBid.getPrice();
     }
 
     public Bid getLatestBid() {
