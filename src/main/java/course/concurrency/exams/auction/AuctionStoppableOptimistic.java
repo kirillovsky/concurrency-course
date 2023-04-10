@@ -19,22 +19,19 @@ public class AuctionStoppableOptimistic implements AuctionStoppable {
         boolean[] isAlreadyStoppedHolder = new boolean[1];
         Bid currentLatestBid = latestBidOrStopped.get(isAlreadyStoppedHolder);
 
-        if (!isCanUpdateLatestBid(currentLatestBid, bid, isAlreadyStoppedHolder[0])) return false;
+        if (isCanNotUpdateLatestBid(currentLatestBid, bid, isAlreadyStoppedHolder[0])) return false;
 
-        while (isCanUpdateLatestBid(currentLatestBid, bid, isAlreadyStoppedHolder[0])
-                && !latestBidOrStopped.compareAndSet(currentLatestBid, bid, false, false)) {
+        while (!latestBidOrStopped.compareAndSet(currentLatestBid, bid, false, false)) {
             currentLatestBid = latestBidOrStopped.get(isAlreadyStoppedHolder);
+            if (isCanNotUpdateLatestBid(currentLatestBid, bid, isAlreadyStoppedHolder[0])) return false;
         }
 
-        boolean isUpdatedLatestBid = isCanUpdateLatestBid(currentLatestBid, bid, isAlreadyStoppedHolder[0]);
-        if (isUpdatedLatestBid && currentLatestBid != NEGATIVE_INFINITY_BID) {
-            notifier.sendOutdatedMessage(currentLatestBid);
-        }
-        return isUpdatedLatestBid;
+        notifier.sendOutdatedMessage(currentLatestBid);
+        return true;
     }
 
-    private boolean isCanUpdateLatestBid(Bid latestBid, Bid newBid, boolean isAuctionStopped) {
-        return !isAuctionStopped && newBid.getPrice() > latestBid.getPrice();
+    private boolean isCanNotUpdateLatestBid(Bid latestBid, Bid newBid, boolean isAuctionStopped) {
+        return isAuctionStopped || newBid.getPrice() <= latestBid.getPrice();
     }
 
     public Bid getLatestBid() {

@@ -11,6 +11,8 @@ public class Notifier {
     }
 
     public void sendOutdatedMessage(Bid bid) {
+        if (bid != Bid.NEGATIVE_INFINITY_BID) return;
+
         executor.submit(this::imitateSending);
     }
 

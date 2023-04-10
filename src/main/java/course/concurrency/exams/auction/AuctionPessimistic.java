@@ -20,17 +20,13 @@ public class AuctionPessimistic implements Auction {
         Bid previousLatestBid;
         synchronized (pessimisticLock) {
             previousLatestBid = latestBid;
-            if (bid.getPrice() > latestBid.getPrice()) {
-                latestBid = bid;
-            }
+            if (bid.getPrice() <= previousLatestBid.getPrice()) return false;
+            latestBid = bid;
         }
 
-        boolean isUpdatedLatestBid = bid.getPrice() > previousLatestBid.getPrice();
-        if (isUpdatedLatestBid && previousLatestBid != NEGATIVE_INFINITY_BID) {
-            notifier.sendOutdatedMessage(previousLatestBid);
-        }
+        notifier.sendOutdatedMessage(previousLatestBid);
 
-        return isUpdatedLatestBid;
+        return true;
     }
 
     public Bid getLatestBid() {

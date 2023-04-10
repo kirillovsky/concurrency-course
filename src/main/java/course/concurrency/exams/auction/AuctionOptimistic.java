@@ -19,15 +19,14 @@ public class AuctionOptimistic implements Auction {
 
         if (bid.getPrice() <= currentLatestBid.getPrice()) return false;
 
-        while (bid.getPrice() > currentLatestBid.getPrice() && !latestBid.compareAndSet(currentLatestBid, bid)) {
+        while (!latestBid.compareAndSet(currentLatestBid, bid)) {
             currentLatestBid = latestBid.get();
+            if (bid.getPrice() <= currentLatestBid.getPrice()) return false;
         }
 
-        boolean isUpdatedLatestBid = bid.getPrice() > currentLatestBid.getPrice();
-        if (isUpdatedLatestBid && currentLatestBid != NEGATIVE_INFINITY_BID) {
-            notifier.sendOutdatedMessage(currentLatestBid);
-        }
-        return isUpdatedLatestBid;
+
+        notifier.sendOutdatedMessage(currentLatestBid);
+        return true;
     }
 
     public Bid getLatestBid() {
