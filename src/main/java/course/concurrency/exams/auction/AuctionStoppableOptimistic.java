@@ -16,15 +16,13 @@ public class AuctionStoppableOptimistic implements AuctionStoppable {
             new AtomicMarkableReference<>(NEGATIVE_INFINITY_BID, false);
 
     public boolean propose(Bid bid) {
-        boolean[] isAlreadyStoppedHolder = new boolean[1];
-        Bid currentLatestBid = latestBidOrStopped.get(isAlreadyStoppedHolder);
+        Bid currentLatestBid;
 
-        if (isCanNotUpdateLatestBid(currentLatestBid, bid, isAlreadyStoppedHolder[0])) return false;
-
-        while (!latestBidOrStopped.compareAndSet(currentLatestBid, bid, false, false)) {
-            currentLatestBid = latestBidOrStopped.get(isAlreadyStoppedHolder);
-            if (isCanNotUpdateLatestBid(currentLatestBid, bid, isAlreadyStoppedHolder[0])) return false;
-        }
+        do {
+            boolean isAlreadyStopped = latestBidOrStopped.isMarked();
+            currentLatestBid = latestBidOrStopped.getReference();
+            if (isCanNotUpdateLatestBid(currentLatestBid, bid, isAlreadyStopped)) return false;
+        } while (!latestBidOrStopped.compareAndSet(currentLatestBid, bid, false, false));
 
         notifier.sendOutdatedMessage(currentLatestBid);
         return true;
@@ -39,12 +37,13 @@ public class AuctionStoppableOptimistic implements AuctionStoppable {
     }
 
     public Bid stopAuction() {
-        boolean[] isAlreadyStoppedHolder = new boolean[1];
         Bid latestBid;
+        boolean isAlreadyStopped;
 
         do {
-            latestBid = latestBidOrStopped.get(isAlreadyStoppedHolder);
-        } while (!isAlreadyStoppedHolder[0] && !latestBidOrStopped.attemptMark(latestBid, true));
+            latestBid = latestBidOrStopped.getReference();
+            isAlreadyStopped = latestBidOrStopped.isMarked();
+        } while (!isAlreadyStopped && !latestBidOrStopped.attemptMark(latestBid, true));
 
         return latestBid;
     }
