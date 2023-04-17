@@ -7,6 +7,7 @@ import java.util.concurrent.*;
 
 public class MountTableRefresherService {
 
+    private Others.MountTableManagerFactory managerFactory;
     private Others.RouterStore routerStore = new Others.RouterStore();
     private long cacheUpdateTimeout;
 
@@ -22,7 +23,11 @@ public class MountTableRefresherService {
      */
     private ScheduledExecutorService clientCacheCleanerScheduler;
 
-    public void serviceInit()  {
+    public MountTableRefresherService(Others.MountTableManagerFactory managerFactory) {
+        this.managerFactory = managerFactory;
+    }
+
+    public void serviceInit() {
         long routerClientMaxLiveTime = 15L;
         this.cacheUpdateTimeout = 10L;
         routerClientsCache = new Others.LoadingCache<String, Others.RouterClient>();
@@ -63,7 +68,7 @@ public class MountTableRefresherService {
     /**
      * Refresh mount table cache of this router as well as all other routers.
      */
-    public void refresh()  {
+    public void refresh() {
 
         List<Others.RouterState> cachedRecords = routerStore.getCachedRecords();
         List<MountTableRefresherThread> refreshThreads = new ArrayList<>();
@@ -80,8 +85,7 @@ public class MountTableRefresherService {
                  */
                 refreshThreads.add(getLocalRefresher(adminAddress));
             } else {
-                refreshThreads.add(new MountTableRefresherThread(
-                            new Others.MountTableManager(adminAddress), adminAddress));
+                refreshThreads.add(new MountTableRefresherThread(managerFactory.create(adminAddress), adminAddress));
             }
         }
         if (!refreshThreads.isEmpty()) {
@@ -90,7 +94,7 @@ public class MountTableRefresherService {
     }
 
     protected MountTableRefresherThread getLocalRefresher(String adminAddress) {
-        return new MountTableRefresherThread(new Others.MountTableManager("local"), adminAddress);
+        return new MountTableRefresherThread(managerFactory.create("local"), adminAddress);
     }
 
     private void removeFromCache(String adminAddress) {
@@ -148,6 +152,7 @@ public class MountTableRefresherService {
     public void setCacheUpdateTimeout(long cacheUpdateTimeout) {
         this.cacheUpdateTimeout = cacheUpdateTimeout;
     }
+
     public void setRouterClientsCache(Others.LoadingCache cache) {
         this.routerClientsCache = cache;
     }

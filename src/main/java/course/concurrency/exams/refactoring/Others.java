@@ -60,4 +60,9 @@ public class Others {
             return ThreadLocalRandom.current().nextBoolean();
         }
     }
+
+    @FunctionalInterface
+    public interface MountTableManagerFactory {
+        MountTableManager create(String address);
+    }
 }
