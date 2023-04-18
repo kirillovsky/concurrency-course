@@ -23,7 +23,7 @@ public class MountTableRefresherServiceTests {
     @BeforeEach
     public void setUpStreams() {
         manager = mock(Others.MountTableManager.class);
-        service = new MountTableRefresherService(__ -> manager);
+        service = new MountTableRefresherService(__ -> manager, Runtime.getRuntime().availableProcessors());
         service.setCacheUpdateTimeout(1000);
         routerStore = mock(Others.RouterStore.class);
         service.setRouterStore(routerStore);
